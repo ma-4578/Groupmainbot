@@ -19,18 +19,21 @@ async def auto_learn_and_reply(client: Client, message: Message):
     if message.reply_to_message:
         reply_to = message.reply_to_message
         
-        # Bot ရဲ့စာကို Reply ပြန်ရင် မမှတ်ဘူး
         if reply_to.from_user and reply_to.from_user.is_bot:
             return
 
         trigger = None
+        # စာသား (Text) သို့မဟုတ် Caption ရှိရင် ယူမယ်
         if reply_to.text:
             trigger = reply_to.text.lower().strip()
+        elif reply_to.caption:
+            trigger = reply_to.caption.lower().strip()
         elif reply_to.sticker:
             trigger = reply_to.sticker.file_unique_id
 
         reply_data = None
         reply_type = None
+        # ပြန်ဖြေမယ့်စာသား သို့မဟုတ် Sticker ကို ယူမယ်
         if message.text:
             reply_data = message.text
             reply_type = "text"
@@ -39,6 +42,7 @@ async def auto_learn_and_reply(client: Client, message: Message):
             reply_type = "sticker"
 
         if trigger and reply_data:
+            # မှတ်သားထားခြင်း ရှိမရှိ စစ်ဆေးခြင်း
             exists = await replies.find_one({"trigger": trigger, "reply": reply_data})
             if not exists:
                 await replies.insert_one({
@@ -54,12 +58,13 @@ async def auto_learn_and_reply(client: Client, message: Message):
                     )
                 except:
                     pass
-            # return မလုပ်တော့ဘဲ အောက်က ပြန်ဖြေတဲ့အပိုင်းကိုပါ ပေးဆင်းမယ်
 
-    # ၂။ အလိုအလျောက် ပြန်ဖြေခြင်း (Reply ရှိရှိ မရှိရှိ အမေးနဲ့တူရင် ဖြေမယ်)
+    # ၂။ အလိုအလျောက် ပြန်ဖြေခြင်း
     current_trigger = None
     if message.text:
         current_trigger = message.text.lower().strip()
+    elif message.caption:
+        current_trigger = message.caption.lower().strip()
     elif message.sticker:
         current_trigger = message.sticker.file_unique_id
 
