@@ -1,60 +1,48 @@
 import os
-import asyncio
 from pyrogram import Client, filters
 from pyrogram.types import Message
-from bot import db 
+from motor.motor_asyncio import AsyncIOMotorClient
 
-# Database Collection
+# --- Database ကို ဒီဖိုင်ထဲမှာတင် တိုက်ရိုက်ချိတ်မယ် (Circular Import ကင်းအောင်) ---
+MONGO_URL = os.environ.get("MONGO_URL", "")
+db_client = AsyncIOMotorClient(MONGO_URL)
+db = db_client["Khh_db"] 
 replies = db["auto_replies"]
 
-# Railway Variable ထဲက OWNER_ID ကို ယူမယ် (မရှိရင် 0 လို့ ထားမယ်)
 OWNER_ID = int(os.environ.get("OWNER_ID", 0))
 
 @Client.on_message(filters.group & ~filters.bot)
 async def auto_learn_and_reply(client: Client, message: Message):
-    # --- ၁။ Auto Learning (Global - အကုန်လုံးအတွက် မှတ်မယ်) ---
+    # --- ၁။ စာသင်ယူခြင်း (Auto Learning) ---
     if message.reply_to_message:
         reply_to = message.reply_to_message
-        
         trigger = None
-        trigger_type = None
         
+        # Sticker ဆိုရင် ID နဲ့မှတ်မယ်၊ စာဆိုရင် စာသားနဲ့မှတ်မယ်
         if reply_to.text:
             trigger = reply_to.text.lower().strip()
-            trigger_type = "text"
         elif reply_to.sticker:
             trigger = reply_to.sticker.file_unique_id
-            trigger_type = "sticker"
 
-        reply_data = None
-        reply_type = None
-        
-        if message.text:
-            reply_data = message.text
-            reply_type = "text"
-        elif message.sticker:
-            reply_data = message.sticker.file_id
-            reply_type = "sticker"
+        if trigger:
+            # အဖြေစာကို စစ်မယ်
+            reply_data = message.text if message.text else (message.sticker.file_id if message.sticker else None)
+            reply_type = "text" if message.text else ("sticker" if message.sticker else None)
 
-        if trigger and reply_data:
-            # chat_id မပါဘဲ စစ်တဲ့အတွက် Group အားလုံးအတွက် တစ်ခုပဲ မှတ်ပါမယ်
-            exists = await replies.find_one({"trigger": trigger})
-            if not exists:
-                await replies.insert_one({
-                    "trigger": trigger,
-                    "trigger_type": trigger_type,
-                    "reply": reply_data,
-                    "reply_type": reply_type
-                })
+            if reply_data:
+                # ရှိပြီးသားစာဆိုရင် ထပ်မမှတ်ဘူး (if not exists logic)
+                exists = await replies.find_one({"trigger": trigger})
+                if not exists:
+                    await replies.insert_one({
+                        "trigger": trigger,
+                        "reply": reply_data,
+                        "reply_type": reply_type
+                    })
 
-    # --- ၂။ Auto Reply (ဘယ် Group မှာမဆို ပြန်ဖြေမယ်) ---
+    # --- ၂။ အလိုအလျောက် ပြန်ဖြေခြင်း (Auto Reply) ---
     else:
-        current_trigger = None
-        if message.text:
-            current_trigger = message.text.lower().strip()
-        elif message.sticker:
-            current_trigger = message.sticker.file_unique_id
-
+        current_trigger = message.text.lower().strip() if message.text else (message.sticker.file_unique_id if message.sticker else None)
+        
         if current_trigger:
             found = await replies.find_one({"trigger": current_trigger})
             if found:
@@ -63,28 +51,18 @@ async def auto_learn_and_reply(client: Client, message: Message):
                 else:
                     await message.reply_sticker(found["reply"])
 
-# --- ၃။ Delete Command (Owner သီးသန့်) ---
+# --- ၃။ Delete Command ---
 @Client.on_message(filters.command("del"))
 async def delete_reply(client: Client, message: Message):
-    # Owner စစ်ဆေးခြင်း
     if message.from_user.id != OWNER_ID:
         return 
 
     if not message.reply_to_message:
-        return await message.reply_text("❌ ဖျက်ချင်တဲ့ အမေးစာကို Reply ပြန်ပြီး `/del` လို့ ရိုက်ပါ။")
+        return await message.reply_text("❌ ဖျက်ချင်တဲ့စာကို Reply ပြန်ပြီး /del ရိုက်ပါ။")
 
     reply_to = message.reply_to_message
-    trigger_to_del = None
-    
-    if reply_to.text:
-        trigger_to_del = reply_to.text.lower().strip()
-    elif reply_to.sticker:
-        trigger_to_del = reply_to.sticker.file_unique_id
+    trigger_to_del = reply_to.text.lower().strip() if reply_to.text else (reply_to.sticker.file_unique_id if reply_to.sticker else None)
 
     if trigger_to_del:
-        # Global ဖြစ်တဲ့အတွက် ဒီ trigger နဲ့ ဆိုင်သမျှ အကုန်ဖျက်မယ်
-        result = await replies.delete_many({"trigger": trigger_to_del})
-        if result.deleted_count > 0:
-            await message.reply_text(f"🗑️ အမေးစာ '{trigger_to_del}' အတွက် အဖြေကို Global Database ထဲက ဖျက်လိုက်ပါပြီ။")
-        else:
-            await message.reply_text("❌ ဒီစာသားအတွက် မှတ်ထားတဲ့ အဖြေမရှိပါဘူး။")
+        await replies.delete_one({"trigger": trigger_to_del})
+        await message.reply_text(f"🗑️ '{trigger_to_del}' ကို ဖျက်လိုက်ပါပြီ။")
