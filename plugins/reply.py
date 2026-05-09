@@ -49,8 +49,7 @@ async def auto_learn_and_reply(client: Client, message: Message):
                     "reply_type": reply_type
                 })
                 try:
-                    await message.reply_text(f"✅ မှတ်သားပြီးပါပြီ")
-                    await message.add_reaction("👍")
+                    await message.add_reaction("❤")
                 except Exception as e:
                     print(f"DEBUG: Error adding reaction: {e}")
             return
