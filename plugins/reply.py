@@ -8,7 +8,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 MONGO_URL = os.environ.get("MONGO_URL", "")
 db_client = AsyncIOMotorClient(MONGO_URL)
 db = db_client["Khh_db"]
-replies = db["auto_replies"]
+replies = db["auto_replies_v2"]
 
 OWNER_ID = int(os.environ.get("OWNER_ID", 0))
 
