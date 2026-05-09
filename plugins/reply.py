@@ -19,30 +19,28 @@ async def auto_learn_and_reply(client: Client, message: Message):
     if message.reply_to_message:
         reply_to = message.reply_to_message
         
+        # Bot အချင်းချင်း ပြန်ဖြေတာတွေကို မမှတ်ဘူး
         if reply_to.from_user and reply_to.from_user.is_bot:
             return
 
         trigger = None
-        # စာသား (Text) သို့မဟုတ် Caption ရှိရင် ယူမယ်
+        # စာသားဆိုရင် formatting အကုန်ဖြုတ်ပြီး သန့်စင်လိုက်မယ်
         if reply_to.text:
             trigger = reply_to.text.lower().strip()
-        elif reply_to.caption:
-            trigger = reply_to.caption.lower().strip()
         elif reply_to.sticker:
             trigger = reply_to.sticker.file_unique_id
 
         reply_data = None
         reply_type = None
-        # ပြန်ဖြေမယ့်စာသား သို့မဟုတ် Sticker ကို ယူမယ်
         if message.text:
-            reply_data = message.text
+            reply_data = message.text # အဖြေကိုတော့ မူရင်းအတိုင်းထားမယ်
             reply_type = "text"
         elif message.sticker:
             reply_data = message.sticker.file_id
             reply_type = "sticker"
 
         if trigger and reply_data:
-            # မှတ်သားထားခြင်း ရှိမရှိ စစ်ဆေးခြင်း
+            # အမေးရော အဖြေရော တူနေမှသာ ကျော်မယ်
             exists = await replies.find_one({"trigger": trigger, "reply": reply_data})
             if not exists:
                 await replies.insert_one({
@@ -51,11 +49,7 @@ async def auto_learn_and_reply(client: Client, message: Message):
                     "reply_type": reply_type
                 })
                 try:
-                    await client.send_reaction(
-                        chat_id=message.chat.id,
-                        message_id=message.id,
-                        emoji="👍"
-                    )
+                    await client.send_reaction(chat_id=message.chat.id, message_id=message.id, emoji="👍")
                 except:
                     pass
 
@@ -63,12 +57,11 @@ async def auto_learn_and_reply(client: Client, message: Message):
     current_trigger = None
     if message.text:
         current_trigger = message.text.lower().strip()
-    elif message.caption:
-        current_trigger = message.caption.lower().strip()
     elif message.sticker:
         current_trigger = message.sticker.file_unique_id
 
     if current_trigger:
+        # Database ထဲမှာ အမေးနဲ့တူတာ အကုန်ရှာမယ်
         cursor = replies.find({"trigger": current_trigger})
         all_replies = await cursor.to_list(length=100)
 
