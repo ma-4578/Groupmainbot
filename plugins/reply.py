@@ -15,7 +15,7 @@ OWNER_ID = int(os.environ.get("OWNER_ID", 0))
 @Client.on_message(filters.group & ~filters.bot)
 async def auto_learn_and_reply(client: Client, message: Message):
     
-    # ၁။ စာသင်ယူခြင်း (Reply ထောက်ထားရင်)
+    # ၁။ စာသင်ယူခြင်း (Reply ထောက်ထားလျှင်)
     if message.reply_to_message:
         reply_to = message.reply_to_message
         
@@ -39,8 +39,6 @@ async def auto_learn_and_reply(client: Client, message: Message):
             reply_type = "sticker"
 
         if trigger and reply_data:
-            print(f"DEBUG: Learning - Trigger: {trigger}, Reply: {reply_data}") # Railway log မှာ ကြည့်ဖို့
-            
             exists = await replies.find_one({"trigger": trigger, "reply": reply_data})
             if not exists:
                 await replies.insert_one({
@@ -49,45 +47,29 @@ async def auto_learn_and_reply(client: Client, message: Message):
                     "reply_type": reply_type
                 })
                 try:
-                    await message.add_reaction("❤")
-                except Exception as e:
-                    print(f"DEBUG: Error adding reaction: {e}")
-            return
+                    await client.send_reaction(
+                        chat_id=message.chat.id,
+                        message_id=message.id,
+                        emoji="👍"
+                    )
+                except:
+                    pass
+            # return မလုပ်တော့ဘဲ အောက်က ပြန်ဖြေတဲ့အပိုင်းကိုပါ ပေးဆင်းမယ်
 
-    # ၂။ အလိုအလျောက် ပြန်ဖြေခြင်း
-    else:
-        current_trigger = None
-        if message.text:
-            current_trigger = message.text.lower().strip()
-        elif message.sticker:
-            current_trigger = message.sticker.file_unique_id
+    # ၂။ အလိုအလျောက် ပြန်ဖြေခြင်း (Reply ရှိရှိ မရှိရှိ အမေးနဲ့တူရင် ဖြေမယ်)
+    current_trigger = None
+    if message.text:
+        current_trigger = message.text.lower().strip()
+    elif message.sticker:
+        current_trigger = message.sticker.file_unique_id
 
-        if current_trigger:
-            cursor = replies.find({"trigger": current_trigger})
-            all_replies = await cursor.to_list(length=100)
+    if current_trigger:
+        cursor = replies.find({"trigger": current_trigger})
+        all_replies = await cursor.to_list(length=100)
 
-            if all_replies:
-                found = random.choice(all_replies)
-                if found["reply_type"] == "text":
-                    await message.reply_text(found["reply"])
-                else:
-                    await message.reply_sticker(found["reply"])
-
-# --- ၃။ Delete Command ---
-@Client.on_message(filters.command("del") & filters.group)
-async def delete_reply(client: Client, message: Message):
-    if message.from_user.id != OWNER_ID:
-        return 
-
-    if not message.reply_to_message:
-        return await message.reply_text("❌ ဖျက်ချင်တဲ့စာကို Reply ပြန်ပြီး /del ရိုက်ပါ။")
-
-    target = message.reply_to_message
-    val_to_del = target.text.lower().strip() if target.text else (target.sticker.file_unique_id if target.sticker else None)
-    
-    res = await replies.delete_many({"$or": [{"trigger": val_to_del}, {"reply": val_to_del}]})
-
-    if res.deleted_count > 0:
-        await message.reply_text(f"🗑️ {res.deleted_count} ခု ဖျက်လိုက်ပါပြီ။")
-    else:
-        await message.reply_text("❌ ရှာမတွေ့ပါ။")
+        if all_replies:
+            found = random.choice(all_replies)
+            if found["reply_type"] == "text":
+                await message.reply_text(found["reply"])
+            else:
+                await message.reply_sticker(found["reply"])
