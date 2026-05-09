@@ -23,7 +23,7 @@ async def delete_reply(client: Client, message: Message):
 
     reply_to = message.reply_to_message
     
-    # ၁။ Reply ထောက်ထားတဲ့စာက 'အမေးစာ (Trigger)' ဖြစ်နေရင် ဖျက်ဖို့ ID ယူမယ်
+    # ၁။ Reply ထောက်ထားတဲ့စာက 'အမေးစာ (Trigger)' ဖြစ်နေရင် ဖျက်ဖို့ ID ယူမ
     trigger = None
     if reply_to.text:
         trigger = reply_to.text.lower().strip()
