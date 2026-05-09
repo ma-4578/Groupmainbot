@@ -17,6 +17,11 @@ async def auto_learn_and_reply(client: Client, message: Message):
     # --- ၁။ Auto Learning (အမေးတူလည်း အဖြေအသစ်ဆိုရင် ထပ်မှတ်မယ်) ---
     if message.reply_to_message:
         reply_to = message.reply_to_message
+        
+        # Bot အချင်းချင်း ပြန်ဖြေတာတွေကို လိုက်မမှတ်အောင် တားဆီးမယ်
+        if reply_to.from_user and reply_to.from_user.is_bot:
+            return
+
         trigger = None
         trigger_type = None
         
@@ -33,7 +38,6 @@ async def auto_learn_and_reply(client: Client, message: Message):
 
             if reply_data:
                 # အမေးရော အဖြေရော အတိအကျတူနေမှသာ မမှတ်တော့မှာပါ
-                # အမေးတူပြီး အဖြေကွဲနေရင် ထပ်မှတ်သွားပါမယ်
                 exists = await replies.find_one({"trigger": trigger, "reply": reply_data})
                 if not exists:
                     await replies.insert_one({
@@ -42,6 +46,11 @@ async def auto_learn_and_reply(client: Client, message: Message):
                         "reply": reply_data,
                         "reply_type": reply_type
                     })
+                    # စာမှတ်မိသွားကြောင်း သိရအောင် ✅ Reaction ပြမယ်
+                    try:
+                        await message.add_reaction("✅")
+                    except:
+                        pass
 
     # --- ၂။ Auto Reply (အမေးတူတာတွေထဲက တစ်ခုကို Random ရွေးဖြေမယ်) ---
     else:
@@ -54,7 +63,7 @@ async def auto_learn_and_reply(client: Client, message: Message):
         if current_trigger:
             # အမေးနဲ့ကိုက်ညီတဲ့ အဖြေအားလုံးကို ရှာမယ်
             cursor = replies.find({"trigger": current_trigger})
-            all_replies = await cursor.to_list(length=100) # အဖြေပေါင်း ၁၀၀ ထိ ရှာပေးမယ်
+            all_replies = await cursor.to_list(length=100)
 
             if all_replies:
                 # ရှာတွေ့တဲ့အထဲက တစ်ခုကို Random ရွေးမယ်
@@ -84,7 +93,7 @@ async def delete_reply(client: Client, message: Message):
     res1 = await replies.delete_many({"trigger": val_to_del})
     
     # အဖြေစာ (Reply) အဖြစ်ရှိနေရင် အဲ့ဒီအဖြေတစ်ခုပဲ ပျက်မယ်
-    res2 = await replies.delete_one({"reply": reply_val})
+    res2 = await replies.delete_many({"reply": reply_val})
 
     if res1.deleted_count > 0 or res2.deleted_count > 0:
         await message.reply_text("🗑️ ဖျက်သိမ်းပြီးပါပြီ။")
